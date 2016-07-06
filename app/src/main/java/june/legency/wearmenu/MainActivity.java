@@ -3,6 +3,7 @@ package june.legency.wearmenu;
 import android.app.Activity;
 import android.os.Bundle;
 import android.support.wearable.view.WatchViewStub;
+import android.view.View;
 import android.widget.TextView;
 
 import june.legency.wearmenu.view.CircleLayout;
@@ -25,6 +26,13 @@ public class MainActivity extends Activity {
             public void onLayoutInflated(WatchViewStub stub) {
                 mCircleMenuLayout = (CircleLayout) stub.findViewById(R.id.id_menulayout);
                 mCircleMenuLayout.setMenuItemIconsAndTexts(mItemImgs, mItemTexts);
+                mCircleMenuLayout.setC(new CircleLayout.CurrentItem() {
+                    @Override
+                    public void setCurrentItem(View v) {
+                        TextView t = (TextView) mCircleMenuLayout.findViewById(R.id.currentItem);
+                        t.setText(((TextView)v.findViewById(R.id.id_circle_menu_item_text)).getText());
+                    }
+                });
             }
         });
     }

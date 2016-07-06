@@ -1,5 +1,6 @@
 package june.legency.wearmenu.view;
 
+import android.animation.ValueAnimator;
 import android.content.Context;
 import android.graphics.Color;
 import android.graphics.Paint;
@@ -87,6 +88,8 @@ public class CircleLayout extends ViewGroup {
     private boolean isFling;
 
     private int mMenuItemLayoutId = R.layout.item;
+    private ValueAnimator valueAnimator;
+    private int currentItem;
 
     public CircleLayout(Context context, AttributeSet attrs) {
         super(context, attrs);
@@ -222,6 +225,10 @@ public class CircleLayout extends ViewGroup {
             }
 
             mStartAngle %= 360;
+            if (mStartAngle / angleDelay == 1) {
+                currentItem = i;
+                setCurrentItem(child);
+            }
 
             // 计算，中心点到menu item中心的距离
             float tmp = layoutRadius / 2f - cWidth / 2 - mPadding;
@@ -262,6 +269,11 @@ public class CircleLayout extends ViewGroup {
             cView.layout(cl, cl, cr, cr);
         }
 
+    }
+
+    private void setCurrentItem(View v) {
+        if (c != null)
+            c.setCurrentItem(v);
     }
 
     /**
@@ -343,6 +355,8 @@ public class CircleLayout extends ViewGroup {
                     post(mFlingRunnable = new AutoFlingRunnable(anglePerSecond));
 
                     return true;
+                } else {
+                    reset();
                 }
 
                 // 如果当前旋转角度超过NOCLICK_VALUE屏蔽点击
@@ -522,9 +536,11 @@ public class CircleLayout extends ViewGroup {
         }
 
         public void run() {
+            cancelRestIfNeed();
             // 如果小于20,则停止
             if ((int) Math.abs(angelPerSecond) < 20) {
                 isFling = false;
+                reset();
                 return;
             }
             isFling = true;
@@ -538,13 +554,63 @@ public class CircleLayout extends ViewGroup {
         }
     }
 
+    void reset() {
+        cancelRestIfNeed();
+        int i = 360 / mMenuItemCount;
+        double t = mStartAngle % i;
+        double d;
+        if (t > i / 2) {
+            d = mStartAngle + i - t;
+        } else {
+            d = mStartAngle - t;
+        }
+        if (valueAnimator == null) {
+            valueAnimator = new ValueAnimator();
+            valueAnimator.setDuration(300);
+        }
+
+        valueAnimator.setFloatValues((float) mStartAngle, (float) d);
+        valueAnimator.addUpdateListener(new ValueAnimator.AnimatorUpdateListener() {
+            @Override
+            public void onAnimationUpdate(ValueAnimator animation) {
+                mStartAngle = (float) animation.getAnimatedValue();
+                requestLayout();
+            }
+        });
+
+        valueAnimator.start();
+    }
+
+    private void cancelRestIfNeed() {
+        if (valueAnimator != null && (valueAnimator.isStarted() || valueAnimator.isRunning())) {
+            valueAnimator.cancel();
+        }
+    }
+
     public boolean onScrollSidePanel(MotionEvent e1, MotionEvent e2, float distanceX,
                                      float distanceY) {
-        Log.d("slide", "onScrollSidePanel " + distanceY);
+        Log.d("slide", "action e1:" + e1.getAction() + "action e2" + e2.getAction());
         mStartAngle -= distanceY;
         requestLayout();
+        reset();
         return true;
 
     }
 
+    // 快速滑动后抬起
+    public boolean onFlingSidePanel(MotionEvent e1, MotionEvent e2, float velocityX,
+                                    float velocityY) {  // velocityY: Y轴方向的加速度，正负数表示方向，方向与distanceY相反
+        post(mFlingRunnable = new AutoFlingRunnable(velocityY / 5));
+        return false;
+    }
+
+    CurrentItem c;
+
+    public void setC(CurrentItem c) {
+        this.c = c;
+    }
+
+    public interface CurrentItem {
+        void setCurrentItem(View v);
+    }
 }
